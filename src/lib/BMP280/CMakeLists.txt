@@ -1,0 +1,21 @@
+set(MAIN_TARGET_NAME BMP280)
+
+add_library(${MAIN_TARGET_NAME})
+target_include_directories(${MAIN_TARGET_NAME}
+    PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include
+    PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+set(HEADERS
+    ${MAIN_TARGET_NAME}.h
+)
+set(SOURCES
+    ${MAIN_TARGET_NAME}.c
+)
+list(TRANSFORM HEADERS PREPEND include/${MAIN_TARGET_NAME}/)
+list(TRANSFORM SOURCES PREPEND src/)
+target_sources(${MAIN_TARGET_NAME}
+    PRIVATE ${HEADERS} ${SOURCES}
+)
+
+target_link_libraries(${MAIN_TARGET_NAME} PUBLIC m)
