@@ -72,7 +72,7 @@ enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h)
 		h, BMI160_REG_DUMMY, NULL));
 	BMI160_wait(h, 20);
 	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
-		h, BMI160_REG_CMD, BMI160_CMD_COMMAND_SOFTRESET));
+		h, BMI160_REG_CMD, BMI160_REG_CMD_SOFTRESET));
 	BMI160_wait(h, 200);
 	BMI160_RETURN_IF_NOT_OK(BMI160_get_reg(
 		h, BMI160_REG_DUMMY, NULL));
@@ -81,10 +81,10 @@ enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h)
 	BMI160_RETURN_IF_NOT_OK(BMI160_check_id(h));
 
 	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
-		h, BMI160_REG_CMD, BMI160_CMD_COMMAND_ACC_NORMAL));
+		h, BMI160_REG_CMD, BMI160_REG_CMD_ACC_NORMAL));
 	BMI160_wait(h, 20);
 	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
-		h, BMI160_REG_CMD, BMI160_CMD_COMMAND_GYR_NORMAL));
+		h, BMI160_REG_CMD, BMI160_REG_CMD_GYR_NORMAL));
 	BMI160_wait(h, 200);
 
 	const uint8_t acc_conf = BMI160_REG_ACC_CONF_BWP_NORMAL
@@ -103,4 +103,61 @@ enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h)
 			BMI160_REG_GYR_RANGE_250_DEG_PER_SEC));
 
 	return BMI160_STATUS_OK;
+}
+
+void BMI160_read_data(struct BMI160_Handle *h)
+{
+	BMI160_read(h, BMI160_REG_DATA_8, 16);
+	for (int i = 0; i < 3; ++i) {
+		int i1 = i + 1;
+		h->data.gyr[i] = (h->rx[i1*2  ] << 8) | h->rx[i*2+1  ];
+		h->data.acc[i] = (h->rx[i1*2+6] << 8) | h->rx[i*2+1+6];
+	}
+}
+
+
+void BMI160_DataSheet_offset(struct BMI160_Handle *h)
+{
+	h->tx[0] = BMI160_REG_OFFSET_6; h->tx[1] = 0xC0;
+	BMI160_write_read(h, 2);
+	h->tx[0] = BMI160_REG_FOC_CONF| 0x80;
+	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
+//data_t = 0x7D; датчик чипом вверх
+//data_t = 0x7E; датчик чипом вниз
+	h->tx[0] = BMI160_REG_FOC_CONF; h->tx[1] = 0x7D;
+	BMI160_write_read(h, 2);
+	h->tx[0] = BMI160_REG_FOC_CONF| 0x80;
+	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
+	BMI160_wait(h, 5);
+	h->tx[0] = BMI160_REG_OFFSET_0| 0x80;
+	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
+	h->tx[0] = BMI160_REG_CMD; h->tx[1] = BMI160_REG_CMD_START_FOC;
+	BMI160_write_read(h, 2);
+	h->tx[0] = BMI160_REG_STATUS | 0x80;
+	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
+	BMI160_wait(h, 250);
+	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
+	h->rx[1] = h->rx[0]&~1<<3;
+	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
+	h->tx[0] = BMI160_REG_OFFSET_0| 0x80;
+	BMI160_write_read(h, 9);//spiTR_DUS(h->tx, 1, 8, h->off, h);
+	BMI160_read_data(h);
+}
+
+void BMI160_set_EXTI(struct BMI160_Handle *h)
+{
+	h->tx[0] = BMI160_REG_FIFO_CONFIG_1; h->tx[1] = 0xC0;
+	BMI160_write_read(h, 2);
+	BMI160_wait(h, 1);
+	h->tx[0] = BMI160_REG_FIFO_CONFIG_0; h->tx[1] = 0x03;
+	BMI160_write_read(h, 2);
+	BMI160_wait(h, 1);
+	h->tx[0] = BMI160_REG_INT_EN_1; h->tx[1] = 0x10;
+	BMI160_write_read(h, 2);
+	BMI160_wait(h, 1);
+	h->tx[0] = BMI160_REG_INT_OUT_CTRL; h->tx[1] = 0x0A;
+	BMI160_write_read(h, 2);
+	BMI160_wait(h, 1);
+	h->tx[0] = BMI160_REG_INT_MAP_1; h->tx[1] = 0x80;
+	BMI160_write_read(h, 2);
 }

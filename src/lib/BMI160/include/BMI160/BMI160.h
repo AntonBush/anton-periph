@@ -25,7 +25,7 @@ struct BMI160_Handle {
 			write_readf, async_write_readf;
 	} init;
 	struct BMI160_Data {
-		float acc[3], gyro[3];
+		float acc[3], gyr[3];
 	} data;
 	uint8_t tx[20], rx[20];
 	;//?
