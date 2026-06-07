@@ -18,11 +18,24 @@ static void BMI160_wait(struct BMI160_Handle *h, int ms)
 	h->init.waitf(ms);
 }
 
+static enum BMI160_Status BMI160_read(
+	struct BMI160_Handle *h, uint8_t reg, uint8_t count)
+{
+	h->tx[0] = BMI160_read_command(reg);
+	return BMI160_write_read(h, count);
+}
+
+static enum BMI160_Status BMI160_write(
+	struct BMI160_Handle *h, uint8_t reg, uint8_t count)
+{
+	h->tx[0] = BMI160_write_command(reg);
+	return BMI160_write_read(h, count);
+}
+
 static enum BMI160_Status BMI160_get_reg(
 	struct BMI160_Handle *h, uint8_t reg, uint8_t *val_ptr)
 {
-	h->tx[0] = BMI160_read_command(reg);
-	BMI160_RETURN_IF_NOT_OK(BMI160_write_read(h, 2));
+	BMI160_RETURN_IF_NOT_OK(BMI160_read(h, reg, 2));
 	if (val_ptr != NULL) {
 		*val_ptr = h->rx[1];
 	}
@@ -32,9 +45,8 @@ static enum BMI160_Status BMI160_get_reg(
 static enum BMI160_Status BMI160_set_reg(
 	struct BMI160_Handle *h, uint8_t reg, uint8_t val)
 {
-	h->tx[0] = BMI160_write_command(reg);
 	h->tx[1] = val;
-	return BMI160_write_read(h, 2);
+	return BMI160_write(h, reg, 2);
 }
 
 static enum BMI160_Status BMI160_check_id(
@@ -65,7 +77,30 @@ enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h)
 	BMI160_RETURN_IF_NOT_OK(BMI160_get_reg(
 		h, BMI160_REG_DUMMY, NULL));
 	BMI160_wait(h, 20);
+
 	BMI160_RETURN_IF_NOT_OK(BMI160_check_id(h));
+
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_CMD, BMI160_CMD_COMMAND_ACC_NORMAL));
+	BMI160_wait(h, 20);
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_CMD, BMI160_CMD_COMMAND_GYR_NORMAL));
+	BMI160_wait(h, 200);
+
+	const uint8_t acc_conf = BMI160_REG_ACC_CONF_BWP_NORMAL
+		| BMI160_REG_ACC_CONF_ODR_1600_HZ;
+	const uint8_t gyr_conf = BMI160_REG_GYR_CONF_BWP_NORMAL
+		| BMI160_REG_GYR_CONF_ODR_1600_HZ;
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_ACC_CONF, acc_conf));
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_GYR_CONF, gyr_conf));
+
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_ACC_RANGE, BMI160_REG_ACC_RANGE_2G));
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_GYR_RANGE,
+			BMI160_REG_GYR_RANGE_250_DEG_PER_SEC));
 
 	return BMI160_STATUS_OK;
 }
