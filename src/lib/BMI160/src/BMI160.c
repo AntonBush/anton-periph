@@ -22,20 +22,20 @@ static enum BMI160_Status BMI160_read(
 	struct BMI160_Handle *h, uint8_t reg, uint8_t count)
 {
 	h->tx[0] = BMI160_read_command(reg);
-	return BMI160_write_read(h, count);
+	return BMI160_write_read(h, 1 + count);
 }
 
 static enum BMI160_Status BMI160_write(
 	struct BMI160_Handle *h, uint8_t reg, uint8_t count)
 {
 	h->tx[0] = BMI160_write_command(reg);
-	return BMI160_write_read(h, count);
+	return BMI160_write_read(h, 1 + count);
 }
 
 static enum BMI160_Status BMI160_get_reg(
 	struct BMI160_Handle *h, uint8_t reg, uint8_t *val_ptr)
 {
-	BMI160_RETURN_IF_NOT_OK(BMI160_read(h, reg, 2));
+	BMI160_RETURN_IF_NOT_OK(BMI160_read(h, reg, 1));
 	if (val_ptr != NULL) {
 		*val_ptr = h->rx[1];
 	}
@@ -46,7 +46,7 @@ static enum BMI160_Status BMI160_set_reg(
 	struct BMI160_Handle *h, uint8_t reg, uint8_t val)
 {
 	h->tx[1] = val;
-	return BMI160_write(h, reg, 2);
+	return BMI160_write(h, reg, 1);
 }
 
 static enum BMI160_Status BMI160_check_id(
@@ -102,62 +102,52 @@ enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h)
 		h, BMI160_REG_GYR_RANGE,
 			BMI160_REG_GYR_RANGE_250_DEG_PER_SEC));
 
+	h->resol.acc = BMI160_ACC_RESOL_LSB_PER_G_RANGE_2G;
+	h->resol.gyr = BMI160_GYR_RESOL_dLSB_PER_DPS_RANGE_250_DPS;
+
 	return BMI160_STATUS_OK;
 }
 
 void BMI160_read_data(struct BMI160_Handle *h)
 {
-	BMI160_read(h, BMI160_REG_DATA_8, 16);
+	BMI160_read(h, BMI160_REG_DATA_8, 15);
 	for (int i = 0; i < 3; ++i) {
 		int i1 = i + 1;
-		h->data.gyr[i] = (h->rx[i1*2  ] << 8) | h->rx[i*2+1  ];
-		h->data.acc[i] = (h->rx[i1*2+6] << 8) | h->rx[i*2+1+6];
+		h->data.gyr[i] = ((h->rx[i1*2  ] << 8) | h->rx[i*2+1  ]) / (h->resol.gyr / 10.f);
+		h->data.acc[i] = ((h->rx[i1*2+6] << 8) | h->rx[i*2+1+6]) / (h->resol.acc /  1.f);
 	}
 }
 
 
 void BMI160_DataSheet_offset(struct BMI160_Handle *h)
 {
-	h->tx[0] = BMI160_REG_OFFSET_6; h->tx[1] = 0xC0;
-	BMI160_write_read(h, 2);
-	h->tx[0] = BMI160_REG_FOC_CONF| 0x80;
-	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
+	BMI160_set_reg(h, BMI160_REG_OFFSET_6, 0xC0);
+	BMI160_get_reg(h, BMI160_REG_FOC_CONF, NULL);
 //data_t = 0x7D; датчик чипом вверх
 //data_t = 0x7E; датчик чипом вниз
-	h->tx[0] = BMI160_REG_FOC_CONF; h->tx[1] = 0x7D;
-	BMI160_write_read(h, 2);
-	h->tx[0] = BMI160_REG_FOC_CONF| 0x80;
-	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
+	BMI160_set_reg(h, BMI160_REG_FOC_CONF, 0x7D);
+	BMI160_get_reg(h, BMI160_REG_FOC_CONF, NULL);
 	BMI160_wait(h, 5);
-	h->tx[0] = BMI160_REG_OFFSET_0| 0x80;
-	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
-	h->tx[0] = BMI160_REG_CMD; h->tx[1] = BMI160_REG_CMD_START_FOC;
-	BMI160_write_read(h, 2);
-	h->tx[0] = BMI160_REG_STATUS | 0x80;
-	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
+	BMI160_get_reg(h, BMI160_REG_OFFSET_0, NULL);
+	BMI160_set_reg(h, BMI160_REG_CMD, BMI160_REG_CMD_START_FOC);
+	BMI160_get_reg(h, BMI160_REG_STATUS, NULL);
 	BMI160_wait(h, 250);
-	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
-	h->rx[1] = h->rx[0]&~1<<3;
-	BMI160_write_read(h, 2);//spiTR_DUS(h->tx, 1, 1, &h->rx[0], h);
-	h->tx[0] = BMI160_REG_OFFSET_0| 0x80;
-	BMI160_write_read(h, 9);//spiTR_DUS(h->tx, 1, 8, h->off, h);
+	BMI160_get_reg(h, BMI160_REG_STATUS, NULL);
+	h->rx[2] = h->rx[1] & ~1 << 3;
+	BMI160_get_reg(h, BMI160_REG_STATUS, NULL);
+	BMI160_read(h, BMI160_REG_OFFSET_0, 8);
 	BMI160_read_data(h);
 }
 
 void BMI160_set_EXTI(struct BMI160_Handle *h)
 {
-	h->tx[0] = BMI160_REG_FIFO_CONFIG_1; h->tx[1] = 0xC0;
-	BMI160_write_read(h, 2);
+	BMI160_set_reg(h, BMI160_REG_FIFO_CONFIG_1, 0xC0);
 	BMI160_wait(h, 1);
-	h->tx[0] = BMI160_REG_FIFO_CONFIG_0; h->tx[1] = 0x03;
-	BMI160_write_read(h, 2);
+	BMI160_set_reg(h, BMI160_REG_FIFO_CONFIG_0, 0x03);
 	BMI160_wait(h, 1);
-	h->tx[0] = BMI160_REG_INT_EN_1; h->tx[1] = 0x10;
-	BMI160_write_read(h, 2);
+	BMI160_set_reg(h, BMI160_REG_INT_EN_1, 0x10);
 	BMI160_wait(h, 1);
-	h->tx[0] = BMI160_REG_INT_OUT_CTRL; h->tx[1] = 0x0A;
-	BMI160_write_read(h, 2);
+	BMI160_set_reg(h, BMI160_REG_INT_OUT_CTRL, 0x0A);
 	BMI160_wait(h, 1);
-	h->tx[0] = BMI160_REG_INT_MAP_1; h->tx[1] = 0x80;
-	BMI160_write_read(h, 2);
+	BMI160_set_reg(h, BMI160_REG_INT_MAP_1, 0x80);
 }

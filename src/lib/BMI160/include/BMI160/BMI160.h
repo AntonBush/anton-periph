@@ -28,10 +28,14 @@ struct BMI160_Handle {
 		float acc[3], gyr[3];
 	} data;
 	uint8_t tx[20], rx[20];
-	;//?
+	struct BMI160_Resolution {
+		enum BMI160_AccResolution acc;
+		enum BMI160_GyrResolution gyr;
+	} resol;
 };
 
 enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h);
+void BMI160_read_data(struct BMI160_Handle *h);
 
 //?
 void BMI160_process_raw(void);
