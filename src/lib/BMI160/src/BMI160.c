@@ -1,4 +1,5 @@
 #include <stddef.h>
+#include <math.h>
 
 #include "BMI160/BMI160.h"
 #include "BMI160/BMI160_datasheet.h"
@@ -6,6 +7,11 @@
 #define BMI160_RETURN_IF_NOT_OK(status) \
 {enum BMI160_Status s = (status); \
 	if (s != BMI160_STATUS_OK) return s;}
+
+static const float BMI160_STD_G_CONSTF = 9.80665;
+
+static const float DEG_TO_RADF = M_PI / 180;
+static const float RAD_TO_DEGF = 180 / M_PI;
 
 static enum BMI160_Status BMI160_write_read(
 	struct BMI160_Handle *h, BMI160_Size count)
@@ -113,15 +119,21 @@ void BMI160_read_data(struct BMI160_Handle *h)
 	BMI160_read(h, BMI160_REG_DATA_8, 15);
 	for (int i = 0; i < 3; ++i) {
 		int i1 = i + 1;
-		h->data.gyr[i] = ((h->rx[i1*2  ] << 8) | h->rx[i*2+1  ]) / (h->resol.gyr / 10.f);
-		h->data.acc[i] = ((h->rx[i1*2+6] << 8) | h->rx[i*2+1+6]) / (h->resol.acc /  1.f);
+		h->data.raw.gyr[i] = (h->rx[i1*2  ] << 8) | h->rx[i*2+1  ];
+		h->data.raw.acc[i] = (h->rx[i1*2+6] << 8) | h->rx[i*2+1+6];
+		h->data.gyr_deg[i] = h->data.raw.gyr[i] / ((float)h->resol.gyr / 10);
+		h->data.acc_g  [i] = h->data.raw.acc[i] / ((float)h->resol.acc /  1);
+		h->data.gyr_rad[i] = h->data.gyr_deg[i] * DEG_TO_RADF;
+		h->data.acc_mss[i] = h->data.acc_g  [i] * BMI160_STD_G_CONSTF;
 	}
 }
 
 
 void BMI160_DataSheet_offset(struct BMI160_Handle *h)
 {
-	BMI160_set_reg(h, BMI160_REG_OFFSET_6, 0xC0);
+	const uint8_t reg_offset_6 = BMI160_REG_OFFSET_6_GYR_OFF_EN
+		| BMI160_REG_OFFSET_6_ACC_OFF_EN;
+	BMI160_set_reg(h, BMI160_REG_OFFSET_6, reg_offset_6);
 	BMI160_get_reg(h, BMI160_REG_FOC_CONF, NULL);
 //data_t = 0x7D; датчик чипом вверх
 //data_t = 0x7E; датчик чипом вниз

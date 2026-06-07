@@ -25,7 +25,11 @@ struct BMI160_Handle {
 			write_readf, async_write_readf;
 	} init;
 	struct BMI160_Data {
-		float acc[3], gyr[3];
+		struct BMI160_RawData {
+			int16_t acc[3], gyr[3];
+		} raw;
+		float acc_g[3], gyr_deg[3];
+		float acc_mss[3], gyr_rad[3];
 	} data;
 	uint8_t tx[20], rx[20];
 	struct BMI160_Resolution {
