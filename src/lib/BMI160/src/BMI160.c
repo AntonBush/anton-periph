@@ -161,6 +161,30 @@ static enum BMI160_Status BMI160_fast_offset_compensation(
 	return BMI160_STATUS_OK;
 }
 
+static enum BMI160_Status BMI160_setup_int(struct BMI160_Handle *h)
+{
+	// Включаем FIFO для акселерометра и гироскопа
+	const uint8_t fifo_config_1 = BMI160_REG_FIFO_CONFIG_1_GYR_EN
+		| BMI160_REG_FIFO_CONFIG_1_ACC_EN;
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_FIFO_CONFIG_1, fifo_config_1));
+	// Когда 3 * 4 байта готовы, тогда случится прерывание
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_FIFO_CONFIG_0, 3));
+	// Активируем прерывание по готовности данных
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_INT_EN_1, BMI160_REG_INT_EN_1_DRDY_EN));
+	// Включаем на выход INT1, высокий активный уровень, push-pull
+	const uint8_t int_out_ctrl = BMI160_REG_INT_OUT_CTRL_INT1_OUTPUT_EN
+		| BMI160_REG_INT_OUT_CTRL_INT1_LVL;
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_INT_OUT_CTRL, int_out_ctrl));
+	// Привязываем прерывание DRDY к пину INT1
+	BMI160_RETURN_IF_NOT_OK(BMI160_set_reg(
+		h, BMI160_REG_INT_MAP_1, BMI160_REG_INT_MAP_1_INT1_DRDY));
+	return BMI160_STATUS_OK;
+}
+
 enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h)
 {
 	BMI160_RETURN_IF_NOT_OK(BMI160_activate_spi(h));
@@ -168,6 +192,7 @@ enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h)
 	BMI160_RETURN_IF_NOT_OK(BMI160_setup_normal_mode(h));
 	BMI160_RETURN_IF_NOT_OK(BMI160_configure(h));
 	BMI160_RETURN_IF_NOT_OK(BMI160_fast_offset_compensation(h));
+	BMI160_RETURN_IF_NOT_OK(BMI160_setup_int(h));
 	return BMI160_STATUS_OK;
 }
 
@@ -183,17 +208,4 @@ void BMI160_read_data(struct BMI160_Handle *h)
 		h->data.gyr_rad[i] = h->data.gyr_deg[i] * DEG_TO_RADF;
 		h->data.acc_mss[i] = h->data.acc_g  [i] * BMI160_STD_G_CONSTF;
 	}
-}
-
-void BMI160_set_EXTI(struct BMI160_Handle *h)
-{
-	BMI160_set_reg(h, BMI160_REG_FIFO_CONFIG_1, 0xC0);
-	BMI160_wait(h, 1);
-	BMI160_set_reg(h, BMI160_REG_FIFO_CONFIG_0, 0x03);
-	BMI160_wait(h, 1);
-	BMI160_set_reg(h, BMI160_REG_INT_EN_1, 0x10);
-	BMI160_wait(h, 1);
-	BMI160_set_reg(h, BMI160_REG_INT_OUT_CTRL, 0x0A);
-	BMI160_wait(h, 1);
-	BMI160_set_reg(h, BMI160_REG_INT_MAP_1, 0x80);
 }
