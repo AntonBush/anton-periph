@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#include "BMI160/BMI160_defs.h"
+#include "BMI160/BMI160_datasheet.h"
 
 typedef uint8_t BMI160_Size;
 
@@ -30,16 +30,6 @@ struct BMI160_Handle {
 	uint8_t tx[20], rx[20];
 	;//?
 };
-
-static inline uint8_t BMI160_read_command(uint8_t reg_addr)
-{
-	return reg_addr | BMI160_COMMAND_MODE_READ;
-}
-
-static inline uint8_t BMI160_write_command(uint8_t reg_addr)
-{
-	return reg_addr & BMI160_COMMAND_MODE_WRITE;
-}
 
 enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h);
 
