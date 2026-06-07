@@ -199,6 +199,17 @@ enum BMI160_Status BMI160_Handle_init(struct BMI160_Handle *h)
 void BMI160_read_data(struct BMI160_Handle *h)
 {
 	BMI160_read(h, BMI160_REG_DATA_8, 15);
+	BMI160_process_data(h);
+}
+
+void BMI160_async_read_data(struct BMI160_Handle *h)
+{
+	h->tx[0] = BMI160_read_command(BMI160_REG_DATA_8);
+	h->init.async_write_readf(h->tx, h->rx, 1 + 15);
+}
+
+void BMI160_process_data(struct BMI160_Handle *h)
+{
 	for (int i = 0; i < 3; ++i) {
 		int i1 = i + 1;
 		h->data.raw.gyr[i] = (h->rx[i1*2  ] << 8) | h->rx[i*2+1  ];
