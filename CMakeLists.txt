@@ -8,3 +8,4 @@ set(CMAKE_C_STANDARD_REQUIRED YES)
 
 add_subdirectory(src/lib/BMI160)
 add_subdirectory(src/lib/BMP280)
+add_subdirectory(src/lib/BMP580)

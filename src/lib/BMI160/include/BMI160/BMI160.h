@@ -43,6 +43,3 @@ void BMI160_read_data(struct BMI160_Handle *h);
 
 void BMI160_async_read_data(struct BMI160_Handle *h);
 void BMI160_process_data(struct BMI160_Handle *h);
-
-//?
-void BMI160_process_raw(void);
