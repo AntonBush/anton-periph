@@ -8,10 +8,10 @@
 {enum BMP580_Status s = (status); \
 	if (s != BMP580_STATUS_OK) return s;}
 
-// static const float BMP580_STD_G_CONSTF = 9.80665;
+static const float BMP580_P0_CONSTF = 101325.0f;
+static const float BMP580_T0_KELVIN_CONSTF = 273.15f;
 
-// static const float DEG_TO_RADF = M_PI / 180;
-// static const float RAD_TO_DEGF = 180 / M_PI;
+static float BMP580_P0 = BMP580_P0_CONSTF;
 
 static enum BMP580_Status BMP580_write_read(
 	struct BMP580_Handle *h, BMP580_Size count)
@@ -81,6 +81,9 @@ enum BMP580_Status BMP580_Handle_init(struct BMP580_Handle *h)
     // 0x42 = 0 + press_en=enable_pressure + osr_p=oversampling_x1 + osr_t=oversampling_x4
     BMP580_set_reg(h, BMP580_REG_OSR_CONFIG, 0x42);
 
+    BMP580_read_data(h);
+    BMP580_P0 = h->data.press;
+
     return BMP580_STATUS_OK;
 }
 
@@ -99,12 +102,16 @@ void BMP580_async_read_data(struct BMP580_Handle *h)
 void BMP580_process_data(struct BMP580_Handle *h)
 {
     // Сборка 24-битных значений
-    h->data.raw.temp  = (h->rx[2] << 16) | (h->rx[1] << 8) | h->rx[0];
-    h->data.raw.press = (h->rx[5] << 16) | (h->rx[4] << 8) | h->rx[3];
+    h->data.raw.temp  = (h->rx[3] << 16) | (h->rx[2] << 8) | h->rx[1];
+    h->data.raw.press = (h->rx[6] << 16) | (h->rx[5] << 8) | h->rx[4];
 
     // Перевод в реальные физические величины по формулам Bosch
     // Градусы Цельсия
     h->data.temp  = h->data.raw.temp  / 65536.0f;
     // Паскали
     h->data.press = h->data.raw.press /    64.0f;
+    // Метры
+    h->data.altitude = (powf(BMP580_P0 / h->data.press, 1 / 5.257f) - 1)
+        * (h->data.temp + BMP580_T0_KELVIN_CONSTF)
+        / 0.0065f;
 }

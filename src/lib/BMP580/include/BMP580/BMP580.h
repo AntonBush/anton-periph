@@ -28,7 +28,7 @@ struct BMP580_Handle {
 		struct BMP580_RawData {
 			int32_t temp, press;
 		} raw;
-		float temp, press;
+		float temp, press, altitude;
 	} data;
 	uint8_t tx[20], rx[20];
 	// struct BMP580_Resolution {
