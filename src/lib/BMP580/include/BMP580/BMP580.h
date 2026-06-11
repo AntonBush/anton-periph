@@ -24,13 +24,12 @@ struct BMP580_Handle {
 		BMP580_TransmitReceiveFunction
 			write_readf, async_write_readf;
 	} init;
-	// struct BMP580_Data {
-	// 	struct BMP580_RawData {
-	// 		int16_t acc[3], gyr[3];
-	// 	} raw;
-	// 	float acc_g[3], gyr_deg[3];
-	// 	float acc_mss[3], gyr_rad[3];
-	// } data;
+	struct BMP580_Data {
+		struct BMP580_RawData {
+			int32_t temp, press;
+		} raw;
+		float temp, press;
+	} data;
 	uint8_t tx[20], rx[20];
 	// struct BMP580_Resolution {
 	// 	enum BMP580_AccResolution acc;
