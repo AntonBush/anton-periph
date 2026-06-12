@@ -60,6 +60,11 @@ enum BMP580_Status BMP580_Handle_init(struct BMP580_Handle *h)
     BMP580_get_reg(h, BMP580_REG_CHIP_ID, NULL);
     // Даем датчику проснуться
     BMP580_wait(h, 10);
+    BMP580_set_reg(h, BMP580_REG_CMD, BMP580_REG_CMD_SOFTRESET);
+    BMP580_wait(h, 10);
+    BMP580_get_reg(h, BMP580_REG_CHIP_ID, NULL);
+    // Даем датчику проснуться
+    BMP580_wait(h, 10);
 
     // Читаем Chip ID (у BMP580 он равен 0x50 или 0x51)
     BMP580_get_reg(h, BMP580_REG_CHIP_ID, &chip_id);
@@ -73,11 +78,35 @@ enum BMP580_Status BMP580_Handle_init(struct BMP580_Handle *h)
     // ODR = 50 Гц
     // 0x45 = deep_dis=0 + odr=10001 + pwr_mode=01
     // 0x45 = deep_dis=enable_deep_standby + odr=40Hz + pwr_mode=Normal 
-    BMP580_set_reg(h, BMP580_REG_ODR_CONFIG, 0x45);
+    //BMP580_set_reg(h, BMP580_REG_ODR_CONFIG, 0x45);
+    BMP580_set_reg(h, BMP580_REG_ODR_CONFIG,
+        BMP580_REG_ODR_CONFIG_20_HZ
+        | BMP580_REG_ODR_CONFIG_PWR_MODE_NORMAL);
     // OSR давления = 4x, температуры = 1x
     // 0x42 = 0 + press_en=1 + osr_p=000 + osr_t=010
     // 0x42 = 0 + press_en=enable_pressure + osr_p=oversampling_x1 + osr_t=oversampling_x4
-    BMP580_set_reg(h, BMP580_REG_OSR_CONFIG, 0x42);
+    //BMP580_set_reg(h, BMP580_REG_OSR_CONFIG, 0x42);
+    BMP580_set_reg(h, BMP580_REG_OSR_CONFIG,
+        BMP580_REG_OSR_CONFIG_PRESS_EN
+        | BMP580_REG_OSR_CONFIG_P_64X
+        | BMP580_REG_OSR_CONFIG_T_64X);
+
+    // drdy_data_reg_en:(bit offset: 0) Data Ready
+    // fifo_full_en:(bit offset: 1) FIFO Full (FIFO_FULL)
+    // fifo_ths_en:(bit offset: 2) FIFO Threshold/Watermark (FIFO_THS)
+    // oor_p_en:(bit offset: 3) Pressure data out-of-range (OOR_P)
+    // reserved_7_4:(bit offset: 4) reserved
+    // 0x00: Disable INT. Except the POR and Software_reset completion
+    BMP580_set_reg(h, BMP580_REG_INT_SOURCE, 0x01);
+    //   7 6 5 4   |    3   |   2    |    1    |    0
+    // pad_int_drv | int_en | int_od | int_pol | int_mode
+    // int_mode: 0-pulsed, 1-latched
+    // int_polarity: 0-active_low, 1-active_high
+    // int_od: 0-push_pull, 1-open_drain
+    // int_en: 0-disabled, 1-enabled
+    // pad_int_drv: Pad drive strength for INT (MSB should be set in INT open drain config only.)
+    // Note: these register fields should be read-back only after waiting at least 1¬μs after they have been written
+    BMP580_set_reg(h, BMP580_REG_INT_CONFIG, 0x0A);
 
     h->press_0 = BMP580_P0_CONSTF;
 
