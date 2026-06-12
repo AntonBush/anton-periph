@@ -29,6 +29,17 @@ enum BMP580_Reg {
     BMP580_REG_CHIP_ID     = 0x01,
 };
 
+enum BMP580_RegIntSource {
+    BMP580_REG_INT_SOURCE_DRDY = 0x01
+};
+
+enum BMP580_RegIntConfig {
+    BMP580_REG_INT_CONFIG_EN          = (1 << 3),
+    BMP580_REG_INT_CONFIG_OPEN_DRAIN  = (1 << 2),
+    BMP580_REG_INT_CONFIG_ACTIVE_HIGH = (1 << 1),
+    BMP580_REG_INT_CONFIG_LATCHED     = (1 << 0)
+};
+
 enum BMP580_RegDefault {
     BMP580_REG_DEFAULT_CHIP_ID = 0x50
 };
