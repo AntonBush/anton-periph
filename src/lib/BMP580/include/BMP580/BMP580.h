@@ -31,6 +31,7 @@ struct BMP580_Handle {
 		float temp, press, altitude;
 	} data;
 	uint8_t tx[20], rx[20];
+	float press_0;
 	// struct BMP580_Resolution {
 	// 	enum BMP580_AccResolution acc;
 	// 	enum BMP580_GyrResolution gyr;

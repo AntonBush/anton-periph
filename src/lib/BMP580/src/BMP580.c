@@ -11,8 +11,6 @@
 static const float BMP580_P0_CONSTF = 101325.0f;
 static const float BMP580_T0_KELVIN_CONSTF = 273.15f;
 
-static float BMP580_P0 = BMP580_P0_CONSTF;
-
 static enum BMP580_Status BMP580_write_read(
 	struct BMP580_Handle *h, BMP580_Size count)
 {
@@ -81,8 +79,7 @@ enum BMP580_Status BMP580_Handle_init(struct BMP580_Handle *h)
     // 0x42 = 0 + press_en=enable_pressure + osr_p=oversampling_x1 + osr_t=oversampling_x4
     BMP580_set_reg(h, BMP580_REG_OSR_CONFIG, 0x42);
 
-    BMP580_read_data(h);
-    BMP580_P0 = h->data.press;
+    h->press_0 = BMP580_P0_CONSTF;
 
     return BMP580_STATUS_OK;
 }
@@ -111,7 +108,7 @@ void BMP580_process_data(struct BMP580_Handle *h)
     // Паскали
     h->data.press = h->data.raw.press /    64.0f;
     // Метры
-    h->data.altitude = (powf(BMP580_P0 / h->data.press, 1 / 5.257f) - 1)
+    h->data.altitude = (powf(h->press_0 / h->data.press, 1 / 5.257f) - 1)
         * (h->data.temp + BMP580_T0_KELVIN_CONSTF)
         / 0.0065f;
 }
